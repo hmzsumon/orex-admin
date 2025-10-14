@@ -1,0 +1,303 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@200;400;500;600;700;800;900&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+#root {
+	overflow-x: hidden !important;
+}
+
+/* Button CS */
+.bg-btn {
+	background-image: linear-gradient(to right, #1fffa3, #8c47f5);
+}
+
+.bg {
+	background-image: url('/assets/starbg.png'), url('/assets/bgRotate.gif');
+}
+
+.pop__bg {
+	background-image: url('/assets/moonAnimation.gif');
+	background-position-x: 500px;
+}
+
+.rotate__animate {
+	animation: animName 30s linear infinite !important;
+}
+
+.nav__link {
+	transition: 0.3s all;
+	color: white;
+	white-space: nowrap;
+}
+
+.nav__link:hover {
+	color: transparent !important;
+	background: linear-gradient(to right, #d02ef0, #09cfff) !important;
+	background-clip: text !important;
+	border: none;
+	outline: none;
+}
+
+.drawer__icon {
+	background: linear-gradient(to right, #d02ef0 0%, #09cfff 100%);
+	-webkit-background-clip: text;
+	background-clip: text !important;
+	-webkit-text-fill-color: transparent;
+}
+
+.navbar .nav__link {
+	font-size: 18px;
+	font-weight: 700;
+	font-family: outfit;
+	position: relative;
+	padding: 5px 0px;
+	margin: 0px 20px !important;
+}
+
+.navbar .nav__link::before {
+	content: '';
+	width: 0;
+	height: 3px;
+	background: linear-gradient(to right, #d02ef0 0%, #09cfff 100%);
+	position: absolute;
+	bottom: 0;
+	transition: 0.3s all;
+}
+
+.navbar .nav__link:hover::before {
+	width: 100%;
+}
+
+.active {
+	color: transparent !important;
+	background: linear-gradient(to right, #d02ef0, #09cfff) !important;
+	background-clip: text !important;
+	border: none;
+	outline: none;
+}
+
+.active::before {
+	content: '';
+	width: 100% !important;
+	height: 3px;
+	background: linear-gradient(to right, #d02ef0 0%, #09cfff 100%) !important;
+	position: absolute;
+	bottom: 0;
+}
+
+.navbar summary::after {
+	content: none;
+}
+
+.brand__style {
+	background: -webkit-linear-gradient(rgb(146, 12, 173) 0%, rgb(0, 160, 199));
+	-webkit-background-clip: text;
+	-webkit-text-fill-color: transparent;
+}
+
+.drawer__bg {
+	background: #000000 url('/assets/starbg.png') repeat top center !important;
+	background-color: black;
+}
+
+.drawer {
+	width: 20% !important;
+}
+
+.header__bg {
+	background: black;
+}
+
+.btn__bg {
+	background: linear-gradient(to right, #d02ef0, #09cfff);
+	border: none;
+	outline: none;
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	transition: 0.3s all;
+	font-weight: bold;
+	color: white;
+}
+
+.btn__bg:hover {
+	background: linear-gradient(to left, #d02ef0, #09cfff);
+}
+
+.custom__bg__color {
+	background: linear-gradient(to right, #d02ef0, #09cfff);
+}
+
+.access__card {
+	position: relative;
+	z-index: 100;
+}
+
+.access__card::after {
+	content: '';
+	width: 0;
+	height: 100%;
+	position: absolute;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: linear-gradient(to right, #d02ef0, #09cfff);
+	z-index: -1;
+	border-radius: 3px;
+	transition: 0.7s all;
+}
+
+.access__card:hover::after {
+	width: 100%;
+}
+
+.nft__card {
+	transition: 0.4s all;
+}
+
+.nft_hover::after {
+	content: '';
+	width: 95%;
+	height: 100%;
+	background: linear-gradient(to right, #d02ef06c, #09ceff70);
+	position: absolute;
+	top: -20px;
+	left: 7px;
+	right: 10px;
+	border-radius: 5px;
+	z-index: -1;
+}
+
+.nft__card:hover .nft_hover {
+	top: -70px;
+}
+
+.nft_hover {
+	transition: 0.4s all;
+	height: 100%;
+	position: relative;
+	z-index: 10;
+}
+
+.focus__border:focus {
+	border-bottom: 0.3rem solid #d02ef0;
+}
+
+.flip__animate {
+	animation: mirrorflip 20s 0s linear infinite;
+}
+
+@keyframes animName {
+	0% {
+		transform: rotate(0deg);
+	}
+
+	100% {
+		transform: rotate(360deg);
+	}
+}
+
+@keyframes mirrorflip {
+	0% {
+		transform: scale(1, 1);
+		-webkit-transform: scale(1, 1);
+		-moz-transform: scale(1, 1);
+		-o-transform: scale(1, 1);
+		-ms-transform: scale(1, 1);
+	}
+
+	50% {
+		transform: scale(-1, 1);
+		-webkit-transform: scale(-1, 1);
+		-moz-transform: scale(-1, 1);
+		-o-transform: scale(-1, 1);
+		-ms-transform: scale(-1, 1);
+	}
+
+	100% {
+		transform: scale(1, 1);
+		-webkit-transform: scale(1, 1);
+		-moz-transform: scale(1, 1);
+		-o-transform: scale(1, 1);
+		-ms-transform: scale(1, 1);
+	}
+}
+
+/* Custom Scroll Bar */
+body::-webkit-scrollbar {
+	width: 7px;
+}
+
+body::-webkit-scrollbar-track {
+	background-color: white !important;
+}
+
+body::-webkit-scrollbar-thumb {
+	background-color: rgba(0, 0, 0, 0.851) !important;
+	border-radius: 5px !important;
+}
+
+.drawer-side::-webkit-scrollbar {
+	width: 7px;
+}
+
+.drawer-side::-webkit-scrollbar-track {
+	background-color: white !important;
+}
+
+.drawer-side::-webkit-scrollbar-thumb {
+	background-color: rgba(0, 0, 0, 0.851) !important;
+	border-radius: 5px !important;
+}
+
+@media screen and (max-width: 576px) {
+	.sm-d-none {
+		display: none !important;
+	}
+
+	.banner__info {
+		display: flex;
+		flex-direction: column-reverse;
+	}
+
+	.p-sm {
+		padding: 0px 20px;
+	}
+
+	.worth {
+		width: 30%;
+		right: 0;
+		left: 60%;
+		top: -10px;
+	}
+}
+
+/* Custom Menu Bar */
+.hidden-dropdown {
+	display: none;
+	position: absolute;
+	top: 30px;
+	right: -100px;
+	border-radius: 10px;
+	padding: 20px 5px 10px 5px;
+	background-color: #0f0e0e;
+	z-index: -1;
+}
+
+.menu-dropdown {
+	position: relative;
+	z-index: 10;
+}
+
+.menu-dropdown:hover .hidden-dropdown {
+	display: unset;
+}
+
+.team__box:hover .team__img {
+	scale: calc(1.05);
+}
+.team__box:hover .team__info {
+	margin-top: -5px;
+}
