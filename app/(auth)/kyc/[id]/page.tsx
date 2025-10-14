@@ -1,299 +1,459 @@
-'use client';
-import { toast } from 'react-toastify';
-import PulseLoader from 'react-spinners/PulseLoader';
-import { fetchBaseQueryError } from '@/redux/services/helpers';
+"use client";
+
+import { formatDate } from "@/lib/functions";
 import {
-	useApproveKycMutation,
-	useGetSingleUserKycQuery,
-	useRejectKycMutation,
-} from '@/redux/features/kyc/kycApi';
-import React, { useEffect, useState } from 'react';
-import { Button, Card, Modal } from 'flowbite-react';
-import { formatDate } from '@/lib/functions';
-import { useRouter } from 'next/navigation';
-import Select from 'react-select';
-interface RejectionReason {
-	value: string;
-	label: string;
-}
+  useApproveKycMutation,
+  useGetSingleUserKycQuery,
+  useRejectKycMutation,
+} from "@/redux/features/kyc/kycApi";
+import { fetchBaseQueryError } from "@/redux/services/helpers";
+import { Badge, Button, Card, Modal, Tooltip } from "flowbite-react";
+import { useRouter } from "next/navigation";
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  FaCalendarAlt,
+  FaCheck,
+  FaCopy,
+  FaFlag,
+  FaIdCard,
+  FaMapMarkerAlt,
+  FaTimes,
+  FaUser,
+} from "react-icons/fa";
+import Select from "react-select";
+import PulseLoader from "react-spinners/PulseLoader";
+import { toast } from "react-toastify";
 
-const SingleKyc = ({ params }: any) => {
-	const router = useRouter();
-	const { id } = params;
-	const { data, isLoading, isSuccess, isError, error } =
-		useGetSingleUserKycQuery(id);
-	const { verification, address: addressData, user } = data || {};
-	const {
-		_id,
-		name,
-		is_verified,
-		is_rejected,
-		status,
-		user_id,
-		partner_id,
-		document_type,
-		document_1,
-		document_2,
-		passport,
-		createdAt,
-		selfie,
-	} = verification || {};
-	const { address, country } = addressData || {};
+type RejectionReason = { value: string; label: string };
 
-	const [openModal, setOpenModal] = useState(false);
-	const [openModal2, setOpenModal2] = useState(false);
-	// State for rejection reasons
-	const [reasons, setReasons] = useState<RejectionReason[]>([]);
+const rejectionReasonsOptions: RejectionReason[] = [
+  { value: "document_issue", label: "Document Not Clear" },
+  { value: "information_mismatch", label: "Information Mismatch" },
+  { value: "expired_document", label: "Expired Document" },
+  { value: "invalid_document", label: "Invalid Document Type" },
+];
 
-	// approve kyc
-	const [
-		approveKyc,
-		{
-			isLoading: a_isLoading,
-			isError: a_isError,
-			isSuccess: a_isSuccess,
-			error: a_error,
-		},
-	] = useApproveKycMutation();
-	// handle approve kyc
-	const handleApproveKyc = () => {
-		console.log('approve kyc');
-		approveKyc(_id);
-	};
-	useEffect(() => {
-		if (a_isSuccess) {
-			toast.success('KYC approved successfully');
-			setOpenModal(false);
-			router.push('/kyc');
-		}
+const labelClass = "text-xs text-gray-500";
+const valueClass = "text-sm font-semibold";
 
-		if (a_isError) {
-			if (a_isError && a_error) {
-				toast.error((a_error as fetchBaseQueryError).data?.message);
-			}
-		}
-	}, [a_isSuccess, a_isError, a_error]);
+const SmartBadge: React.FC<{ status?: string }> = ({ status }) => {
+  const color =
+    status === "approved"
+      ? "success"
+      : status === "rejected"
+      ? "failure"
+      : status === "under_review" || status === "pending"
+      ? "warning"
+      : "gray";
+  const text =
+    status === "approved"
+      ? "Approved"
+      : status === "rejected"
+      ? "Rejected"
+      : status === "under_review"
+      ? "Under Review"
+      : status === "pending"
+      ? "Pending"
+      : status ?? "Unknown";
 
-	// for reject
-	const [
-		rejectKyc,
-		{
-			isLoading: r_isLoading,
-			isSuccess: r_isSuccess,
-			isError: r_isError,
-			error: r_error,
-		},
-	] = useRejectKycMutation();
+  return <Badge color={color}>{text}</Badge>;
+};
 
-	// Explicitly define the type for options
-	const rejectionReasonsOptions: RejectionReason[] = [
-		{ value: 'document_issue', label: 'Document Not Clear' },
-		{ value: 'information_mismatch', label: 'Information Mismatch' },
-		// Add more rejection reasons as needed
-	];
+const CopyText: React.FC<{ text: string; className?: string }> = ({
+  text,
+  className,
+}) => {
+  return (
+    <button
+      type="button"
+      className={`inline-flex items-center gap-1 text-xs underline hover:no-underline ${
+        className || ""
+      }`}
+      onClick={() => {
+        navigator.clipboard.writeText(text);
+        toast.success("Copied!");
+      }}
+      aria-label="Copy to clipboard"
+      title="Copy"
+    >
+      <FaCopy /> Copy
+    </button>
+  );
+};
 
-	// re reject handler
-	const handleReReject = async () => {
-		console.log('re reject with reasons', reasons);
-		const reasonValues = reasons.map((reason) => reason.label);
-		const data = {
-			id: _id,
-			reasons: reasonValues,
-		};
+const ImgTile: React.FC<{
+  src: string;
+  title: string;
+  onClick: () => void;
+}> = ({ src, title, onClick }) => (
+  <Card
+    className="max-w-xs cursor-pointer transition hover:shadow-lg"
+    imgAlt={title}
+    imgSrc={src}
+    onClick={onClick}
+  >
+    <h5 className="text-base font-semibold">{title}</h5>
+  </Card>
+);
 
-		rejectKyc(data);
-		console.log(data);
-	};
+const Skeleton: React.FC = () => (
+  <div className="space-y-4">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {[...Array(3)].map((_, i) => (
+        <div
+          key={i}
+          className="p-4 rounded-xl bg-gray-100 dark:bg-gray-800 animate-pulse h-28"
+        />
+      ))}
+    </div>
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {[...Array(4)].map((_, i) => (
+        <div
+          key={i}
+          className="h-64 rounded-xl bg-gray-100 dark:bg-gray-800 animate-pulse"
+        />
+      ))}
+    </div>
+  </div>
+);
 
-	useEffect(() => {
-		if (r_isSuccess) {
-			toast.success('KYC rejected successfully');
-			setOpenModal2(false);
-			router.push('/kyc');
-		}
+const SingleKyc = ({ params }: { params: { id: string } }) => {
+  const router = useRouter();
+  const { id } = params;
 
-		if (r_isError) {
-			if (r_isError && r_error) {
-				toast.error((r_error as fetchBaseQueryError).data?.message);
-			}
-		}
-	}, [r_isSuccess, r_isError, r_error]);
+  // ── Data fetch
+  const { data, isLoading, isError, error } = useGetSingleUserKycQuery(id);
+  const kyc = data?.kyc;
 
-	return (
-		<div>
-			<Card className='p-4'>
-				<div className='flex items-center justify-between'>
-					<h1 className='text-xl font-semibold'>
-						{name} KYC Verification Details
-					</h1>
-				</div>
-				<div className='mt-4'>
-					<div className='flex flex-col  gap-4'>
-						<div>
-							<p className='text-xs'>Name</p>
-							<p className='text-sm font-semibold'>{name}</p>
-						</div>
+  // ── Map server fields safely
+  const {
+    _id,
+    customer_id,
+    user_id,
+    status,
+    createdAt,
+    profile,
+    document,
+    selfie,
+  } = kyc || {};
 
-						<div>
-							<p className='text-xs'>Date of Birth</p>
-							<p className='text-sm font-semibold'>
-								{formatDate(user?.dateOfBirth)}
-							</p>
-						</div>
-					</div>
-					<div className='mt-4 space-y-2'>
-						<div>
-							<p className='text-xs'>Address</p>
-							<p className='text-sm font-semibold'>{address}</p>
-						</div>
-						<div>
-							<p className='text-xs'>Country</p>
-							<p className='text-sm font-semibold'>{country}</p>
-						</div>
-					</div>
-					<div className='mt-4'>
-						<div>
-							<p className='text-xs'>ID Type</p>
-							<p className='text-sm font-semibold'>{document_type}</p>
-						</div>
-					</div>
-					<div className='mt-4'>
-						<div>
-							<p className='text-xs'>Status</p>
-							<p className='text-sm font-semibold'>{verification?.status}</p>
-						</div>
-					</div>
-				</div>
-			</Card>
-			<div className='my-4 flex flex-wrap gap-4'>
-				{document_1 && (
-					<Card
-						className='max-w-sm'
-						imgAlt='Meaningful alt text for an image that is not purely decorative'
-						imgSrc={document_1}
-					>
-						<h5 className='text-2xl font-bold tracking-tight text-gray-900 dark:text-white'>
-							{document_type} Front
-						</h5>
-					</Card>
-				)}
+  const name = profile?.full_name || "—";
+  const dob = profile?.dob ? formatDate(profile.dob) : "—";
+  const addr = profile?.address || "—";
+  const country = profile?.country || "—";
+  const city = profile?.city || "—";
+  const idType = document?.type || "—";
+  const docFront = document?.front_url;
+  const docBack = document?.back_url;
+  const selfieUrl = selfie?.url;
 
-				{document_2 && (
-					<Card
-						className='max-w-sm'
-						imgAlt='Meaningful alt text for an image that is not purely decorative'
-						imgSrc={document_2}
-					>
-						<h5 className='text-2xl font-bold tracking-tight text-gray-900 dark:text-white'>
-							{document_type} Back
-						</h5>
-					</Card>
-				)}
+  // ── Actions
+  const [approveKyc, aState] = useApproveKycMutation();
+  const [rejectKyc, rState] = useRejectKycMutation();
+  const [openApprove, setOpenApprove] = useState(false);
+  const [openReject, setOpenReject] = useState(false);
+  const [reasons, setReasons] = useState<RejectionReason[]>([]);
+  const [previewSrc, setPreviewSrc] = useState<string | null>(null);
 
-				{passport && (
-					<Card
-						className='max-w-sm'
-						imgAlt='Meaningful alt text for an image that is not purely decorative'
-						imgSrc={passport}
-					>
-						<h5 className='text-2xl font-bold tracking-tight text-gray-900 dark:text-white'>
-							Passport
-						</h5>
-					</Card>
-				)}
+  const canAct = status === "under_review" || status === "pending";
 
-				{selfie && (
-					<Card
-						className='max-w-sm'
-						imgAlt='Meaningful alt text for an image that is not purely decorative'
-						imgSrc={selfie}
-					>
-						<h5 className='text-2xl font-bold tracking-tight text-gray-900 dark:text-white'>
-							Selfie
-						</h5>
-					</Card>
-				)}
-			</div>
+  const handleApproveKyc = () => {
+    if (!_id) return;
+    approveKyc(_id);
+  };
 
-			<div>
-				{status === 'pending' && (
-					<div className='gap-2 mt-2 grid '>
-						<Button onClick={() => setOpenModal(true)}>
-							<span>Approve</span>
-						</Button>{' '}
-						<Button
-							className=' bg-orange-500'
-							onClick={() => setOpenModal2(true)}
-						>
-							<span>Reject</span>
-						</Button>{' '}
-					</div>
-				)}
-			</div>
-			<>
-				<Modal show={openModal} onClose={() => setOpenModal(false)}>
-					<Modal.Header>
-						<span>Approve Kyc Verification</span>
-					</Modal.Header>
-					<Modal.Body>
-						<div className='space-y-6'>
-							<p className='text-base leading-relaxed text-yellow-400'>
-								Are you sure you want to approve this deposit?
-							</p>
-						</div>
-					</Modal.Body>
-					<Modal.Footer>
-						<Button onClick={() => handleApproveKyc()}>Approve</Button>
-						<Button color='gray' onClick={() => setOpenModal(false)}>
-							Decline
-						</Button>
-					</Modal.Footer>
-				</Modal>
-			</>
-			{/* for reject */}
-			<>
-				<Modal show={openModal2} onClose={() => setOpenModal2(false)}>
-					<Modal.Header>
-						<span>Reject KYC Verification</span>
-					</Modal.Header>
-					{r_isLoading ? (
-						<div className='d-flex align-items-center justify-content-center'>
-							<PulseLoader color='#FFD700' loading={true} size={10} />
-						</div>
-					) : (
-						<Modal.Body>
-							<p className=' text-warning'>
-								Are you sure you want to reject this KYC?
-							</p>
-							<div>
-								<label htmlFor='rejection-reasons'>
-									<span>Select reasons for rejection</span>
-								</label>
-								{/* Use react-select for a multi-select dropdown */}
-								<Select
-									id='rejection-reasons'
-									isMulti
-									options={rejectionReasonsOptions}
-									value={reasons}
-									onChange={(selectedOptions) =>
-										setReasons(selectedOptions as RejectionReason[])
-									}
-								/>
-							</div>
-						</Modal.Body>
-					)}
-					<Modal.Footer>
-						<Modal.Footer>
-							<Button onClick={() => handleReReject()}>Reject KYC</Button>
-							<Button color='gray' onClick={() => setOpenModal2(false)}>
-								Decline
-							</Button>
-						</Modal.Footer>
-					</Modal.Footer>
-				</Modal>
-			</>
-		</div>
-	);
+  const handleRejectKyc = () => {
+    if (!_id) return;
+    const payload = { id: _id, reasons: reasons.map((r) => r.label) };
+    rejectKyc(payload);
+  };
+
+  useEffect(() => {
+    if (aState.isSuccess) {
+      toast.success("KYC approved successfully");
+      setOpenApprove(false);
+      router.push("/kyc");
+    }
+    if (aState.isError && aState.error) {
+      toast.error(
+        (aState.error as fetchBaseQueryError).data?.message || "Approval failed"
+      );
+    }
+  }, [aState.isSuccess, aState.isError, aState.error, router]);
+
+  useEffect(() => {
+    if (rState.isSuccess) {
+      toast.success("KYC rejected successfully");
+      setOpenReject(false);
+      router.push("/kyc");
+    }
+    if (rState.isError && rState.error) {
+      toast.error(
+        (rState.error as fetchBaseQueryError).data?.message ||
+          "Rejection failed"
+      );
+    }
+  }, [rState.isSuccess, rState.isError, rState.error, router]);
+
+  const headerRight = useMemo(
+    () => (
+      <div className="flex items-center gap-2">
+        <SmartBadge status={status} />
+        {customer_id ? (
+          <Tooltip content="Customer ID">
+            <span className="text-xs rounded-full px-2 py-1 bg-gray-100 dark:bg-gray-800">
+              {customer_id}
+            </span>
+          </Tooltip>
+        ) : null}
+      </div>
+    ),
+    [status, customer_id]
+  );
+
+  if (isLoading) return <Skeleton />;
+
+  if (isError) {
+    return (
+      <Card className="p-6">
+        <h2 className="text-lg font-semibold text-red-600">
+          Failed to load KYC
+        </h2>
+        <p className="text-sm text-gray-600 mt-1">
+          {(error as any)?.data?.message ||
+            (error as any)?.error ||
+            "Please try again."}
+        </p>
+      </Card>
+    );
+  }
+
+  if (!kyc) {
+    return (
+      <Card className="p-6">
+        <h2 className="text-lg font-semibold">No KYC found</h2>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <Card className="p-5">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div>
+            <h1 className="text-xl font-semibold flex items-center gap-2">
+              <FaUser /> {name} — KYC Details
+            </h1>
+            <p className="text-xs text-gray-500 mt-1">
+              Created: {formatDate(createdAt)} • ID: {_id?.slice(0, 8)}…
+              {_id ? <CopyText text={_id} className="ml-2" /> : null}
+            </p>
+          </div>
+          {headerRight}
+        </div>
+      </Card>
+
+      {/* Info grid */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="p-4">
+          <div className="flex items-start gap-3">
+            <FaUser className="mt-1" />
+            <div>
+              <p className={labelClass}>Full Name</p>
+              <p className={valueClass}>{name}</p>
+            </div>
+          </div>
+          <div className="mt-3 flex items-start gap-3">
+            <FaCalendarAlt className="mt-1" />
+            <div>
+              <p className={labelClass}>Date of Birth</p>
+              <p className={valueClass}>{dob}</p>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-start gap-3">
+            <FaMapMarkerAlt className="mt-1" />
+            <div>
+              <p className={labelClass}>Address</p>
+              <p className={valueClass}>{addr}</p>
+              <p className="text-xs text-gray-500 mt-1">
+                City: {city} • Country: {country}
+              </p>
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-start gap-3">
+            <FaIdCard className="mt-1" />
+            <div>
+              <p className={labelClass}>ID Type</p>
+              <p className={valueClass}>{idType}</p>
+            </div>
+          </div>
+          <div className="mt-3 flex items-start gap-3">
+            <FaFlag className="mt-1" />
+            <div>
+              <p className={labelClass}>User / Customer</p>
+              <p className={valueClass}>
+                {user_id?.slice(0, 8)}…{" "}
+                {user_id ? <CopyText text={String(user_id)} /> : null}
+              </p>
+              <p className="text-xs text-gray-500 mt-1">
+                Customer ID: {customer_id || "—"}{" "}
+                {customer_id ? <CopyText text={customer_id} /> : null}
+              </p>
+            </div>
+          </div>
+        </Card>
+      </div>
+
+      {/* Images */}
+      <div>
+        <h2 className="text-base font-semibold mb-2">Documents & Selfie</h2>
+        <div className="flex flex-wrap gap-4">
+          {docFront && (
+            <ImgTile
+              src={docFront}
+              title={`${idType} — Front`}
+              onClick={() => setPreviewSrc(docFront)}
+            />
+          )}
+          {docBack && (
+            <ImgTile
+              src={docBack}
+              title={`${idType} — Back`}
+              onClick={() => setPreviewSrc(docBack)}
+            />
+          )}
+          {selfieUrl && (
+            <ImgTile
+              src={selfieUrl}
+              title="Selfie"
+              onClick={() => setPreviewSrc(selfieUrl)}
+            />
+          )}
+          {!docFront && !docBack && !selfieUrl && (
+            <Card className="p-4">
+              <p className="text-sm text-gray-500">No images available.</p>
+            </Card>
+          )}
+        </div>
+      </div>
+
+      {/* Actions */}
+      <Card className="p-4">
+        <div className="flex flex-wrap gap-3">
+          <Tooltip
+            content={
+              canAct ? "Approve this KYC" : "Action disabled for this status"
+            }
+          >
+            <span>
+              <Button
+                color="success"
+                onClick={() => setOpenApprove(true)}
+                disabled={!canAct || aState.isLoading}
+              >
+                <FaCheck className="mr-2" /> Approve
+              </Button>
+            </span>
+          </Tooltip>
+
+          <Tooltip
+            content={
+              canAct ? "Reject this KYC" : "Action disabled for this status"
+            }
+          >
+            <span>
+              <Button
+                color="failure"
+                onClick={() => setOpenReject(true)}
+                disabled={!canAct || rState.isLoading}
+              >
+                <FaTimes className="mr-2" /> Reject
+              </Button>
+            </span>
+          </Tooltip>
+
+          {(aState.isLoading || rState.isLoading) && (
+            <div className="inline-flex items-center">
+              <PulseLoader loading size={8} />
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {/* Preview modal */}
+      <Modal show={!!previewSrc} onClose={() => setPreviewSrc(null)} size="4xl">
+        <Modal.Header>Preview</Modal.Header>
+        <Modal.Body>
+          {previewSrc ? (
+            <img
+              src={previewSrc}
+              alt="Preview"
+              className="w-full h-auto rounded-lg"
+              loading="eager"
+              decoding="sync"
+            />
+          ) : null}
+        </Modal.Body>
+      </Modal>
+
+      {/* Approve modal */}
+      <Modal show={openApprove} onClose={() => setOpenApprove(false)}>
+        <Modal.Header>Approve KYC</Modal.Header>
+        <Modal.Body>
+          <p className="text-sm">
+            Are you sure you want to approve this KYC for{" "}
+            <strong>{name}</strong>?
+          </p>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button onClick={handleApproveKyc} disabled={aState.isLoading}>
+            {aState.isLoading ? "Approving..." : "Approve"}
+          </Button>
+          <Button color="gray" onClick={() => setOpenApprove(false)}>
+            Cancel
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Reject modal */}
+      <Modal show={openReject} onClose={() => setOpenReject(false)}>
+        <Modal.Header>Reject KYC</Modal.Header>
+        {rState.isLoading ? (
+          <div className="p-6 flex justify-center">
+            <PulseLoader loading size={10} />
+          </div>
+        ) : (
+          <>
+            <Modal.Body>
+              <p className="text-sm mb-2">Select reasons for rejection</p>
+              <Select
+                id="rejection-reasons"
+                isMulti
+                options={rejectionReasonsOptions}
+                value={reasons}
+                onChange={(opts) =>
+                  setReasons((opts as RejectionReason[]) || [])
+                }
+              />
+            </Modal.Body>
+            <Modal.Footer>
+              <Button onClick={handleRejectKyc}>Reject KYC</Button>
+              <Button color="gray" onClick={() => setOpenReject(false)}>
+                Cancel
+              </Button>
+            </Modal.Footer>
+          </>
+        )}
+      </Modal>
+    </div>
+  );
 };
 
 export default SingleKyc;
